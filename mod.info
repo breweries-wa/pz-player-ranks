@@ -1,0 +1,6 @@
+name=Player Ranks
+id=PlayerRanks
+description=Tracks player stats server-side and displays ranked leaderboards. Compete across dozens of lifetime and per-character statistics — zombies killed, distance traveled, days survived, and more. Admins can wipe or snapshot data at any time.
+author=Ryan
+modversion=0.1
+pzversion=42
