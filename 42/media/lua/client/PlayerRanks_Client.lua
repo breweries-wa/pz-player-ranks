@@ -102,40 +102,10 @@ end)
 
 -- ---------------------------------------------------------------------------
 -- Chat messages + /ranks command
--- Counts outgoing chat messages and intercepts /ranks slash commands.
--- The /ranks text will appear in the chat box until Phase 4 suppression is added.
--- TODO(hook-audit): Confirm OnChatMessage signature in B42.
--- Known variants: (chat, message, tabID) with ChatMessage object, or (author, text).
+-- TODO(hook-audit): Events.OnChatMessage does not exist in B42 (confirmed null).
+-- The B42 chat system uses a different API. Needs investigation before Phase 4.
+-- chatmessages stat and /ranks slash command interception are deferred until then.
 -- ---------------------------------------------------------------------------
-
-Events.OnChatMessage.Add(function(chat, message)
-    if not message then return end
-
-    local player = getSpecificPlayer(0)
-    if not player then return end
-
-    -- Only process messages the local player sent
-    local ok1, author = pcall(function() return message:getAuthor() end)
-    if not ok1 or not author then return end
-
-    local ok2, username = pcall(function() return player:getUsername() end)
-    if not ok2 or not username then return end
-
-    if author ~= username then return end
-
-    local ok3, text = pcall(function() return message:getText() end)
-    if not ok3 or not text then return end
-
-    -- Intercept /ranks command before counting as a chat message
-    local trimmed = text:match("^%s*(.-)%s*$")
-    local lower   = string.lower(trimmed)
-    if lower:sub(1, 6) == "/ranks" then
-        sendClientCommand(player, MOD, "ChatCommand", { text = lower })
-        return
-    end
-
-    inc("chatmessages")
-end)
 
 -- ---------------------------------------------------------------------------
 -- Flush timer
