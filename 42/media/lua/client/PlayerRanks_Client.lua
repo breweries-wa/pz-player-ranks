@@ -29,21 +29,19 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Zombie kills
--- TODO(hook-audit): confirm zombie:getAttacker() is the correct B42 method name.
--- Alternatives seen in community code: getLastAttacker(), getKiller().
+-- TODO(hook-audit): zombie:getAttacker() does not exist in B42 -- throws a
+-- Java exception that escapes pcall. Need to find the correct method name.
+-- Candidates to test one at a time: getLastAttacker(), getKiller(),
+-- getAttackedBy(). Disabled until confirmed.
 -- ---------------------------------------------------------------------------
-
-Events.OnZombieDead.Add(function(zombie)
-    local player = getSpecificPlayer(0)
-    if not player then return end
-
-    local ok, attacker = pcall(function() return zombie:getAttacker() end)
-    if not ok or not attacker then return end
-
-    if attacker == player then
-        inc("zombieskilled")
-    end
-end)
+--
+-- Events.OnZombieDead.Add(function(zombie)
+--     local player = getSpecificPlayer(0)
+--     if not player then return end
+--     local ok, attacker = pcall(function() return zombie:getAttacker() end)
+--     if not ok or not attacker then return end
+--     if attacker == player then inc("zombieskilled") end
+-- end)
 
 -- ---------------------------------------------------------------------------
 -- Bites & scratches

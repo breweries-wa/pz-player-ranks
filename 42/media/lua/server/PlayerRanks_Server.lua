@@ -100,6 +100,9 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             then
                 record.lifetime[statId] = (record.lifetime[statId] or 0) + delta
                 record.char[statId]     = (record.char[statId]     or 0) + delta
+                -- DEBUG: remove before release
+                print(string.format("[PlayerRanks] %s +%d %s (lifetime: %d)",
+                    player:getUsername(), delta, statId, record.lifetime[statId]))
             end
         end
         saveData()
