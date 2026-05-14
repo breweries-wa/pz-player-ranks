@@ -1,4 +1,4 @@
--- Client-side: event hooks, delta batching, /ranks chat command, server message display.
+-- Client-side: event hooks, delta batching, /rank chat command, server message display.
 -- Phase 1: event-based stats only. Polled stats (distance, tiles, etc.) added in Phase 2.
 
 local MOD            = "PlayerRanks"
@@ -25,6 +25,76 @@ local function flushDeltas()
 
     sendClientCommand(player, MOD, "StatDelta", { deltas = _deltas })
     _deltas = {}
+end
+
+-- ---------------------------------------------------------------------------
+-- Chat output helper
+-- Confirmed B42 API: ISChat.addLineInChat(message, tabIndex)
+-- tabIndex 0 = General tab
+-- ---------------------------------------------------------------------------
+
+local function addChatLine(text)
+    local ok = pcall(function()
+        ISChat.addLineInChat(text, 0)
+    end)
+    if not ok then
+        print("[PlayerRanks] " .. text)
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- /rank chat command hook
+-- B42 pattern (confirmed from BurdSurvivalJournals mod):
+--   Override ISChat.onCommandEntered, read text from textEntry, suppress
+--   the message and handle it ourselves. Defer install until ISChat is ready.
+-- ---------------------------------------------------------------------------
+
+local function hookISChat()
+    if not ISChat then return false end
+
+    local original = ISChat.onCommandEntered
+
+    ISChat.onCommandEntered = function(self)
+        local text = ISChat.instance
+            and ISChat.instance.textEntry
+            and ISChat.instance.textEntry:getText()
+
+        if text and string.lower(text):match("^/rank%s*$") then
+            -- Suppress the message
+            if ISChat.instance and ISChat.instance.textEntry then
+                ISChat.instance.textEntry:setText("")
+            end
+            if ISChat.instance then ISChat.instance:unfocus() end
+
+            -- Request top stats from server
+            local player = getSpecificPlayer(0)
+            if player then
+                sendClientCommand(player, MOD, "ChatCommand", { text = "/rank" })
+            end
+            return
+        end
+
+        if original then return original(self) end
+    end
+
+    return true
+end
+
+-- Install immediately if ISChat is already loaded, otherwise retry on ticks
+-- after game start (mirrors BurdSurvivalJournals pattern).
+if ISChat then
+    hookISChat()
+else
+    Events.OnGameStart.Add(function()
+        local ticks = 0
+        local function tryHook()
+            ticks = ticks + 1
+            if hookISChat() or ticks > 100 then
+                Events.OnTick.Remove(tryHook)
+            end
+        end
+        Events.OnTick.Add(tryHook)
+    end)
 end
 
 -- ---------------------------------------------------------------------------
@@ -110,13 +180,6 @@ end)
 -- TODO(hook-audit): Unconscious moodle or OnPlayerFallUnconscious needs verification.
 
 -- ---------------------------------------------------------------------------
--- Chat messages + /ranks command
--- TODO(hook-audit): Events.OnChatMessage does not exist in B42 (confirmed null).
--- The B42 chat system uses a different API. Needs investigation before Phase 4.
--- chatmessages stat and /ranks slash command interception are deferred until then.
--- ---------------------------------------------------------------------------
-
--- ---------------------------------------------------------------------------
 -- Flush timer
 -- ---------------------------------------------------------------------------
 
@@ -145,18 +208,7 @@ Events.OnServerCommand.Add(function(module, command, args)
     if module ~= MOD then return end
 
     if command == "ServerMessage" then
-        local text = args.text or ""
-        -- Write to chat panel; falls back to console if ISChat is unavailable
-        local ok = pcall(function()
-            local chat = ISChat.instance
-            if chat and chat.chatText then
-                -- pale yellow for mod messages
-                chat.chatText:addLineInWindow(text, 0.9, 0.85, 0.4, 1.0)
-            end
-        end)
-        if not ok then
-            print("[PlayerRanks] " .. text)
-        end
+        addChatLine(args.text or "")
     end
 
     -- LeaderboardResult, MyStatsResult, HoFResult handled by Phase 3 UI

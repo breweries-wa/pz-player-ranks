@@ -167,6 +167,41 @@ Events.OnClientCommand.Add(function(module, command, player, args)
         local parts = {}
         for word in text:gmatch("%S+") do parts[#parts+1] = word end
 
+        -- /rank (no s) -> leaderboard summary for all players
+        if parts[1] == "/rank" then
+            local data    = loadData()
+            local summary = {
+                { id = "zombieskilled",  label = "Zombies Killed" },
+                { id = "totaldeaths",    label = "Total Deaths"   },
+                { id = "longeststreak",  label = "Longest Streak" },
+                { id = "itemscrafted",   label = "Items Crafted"  },
+                { id = "distancetraveled", label = "Distance Traveled" },
+            }
+            sendServerCommand(player, MOD, "ServerMessage",
+                { text = "--- Player Ranks ---" })
+            for _, s in ipairs(summary) do
+                local top1 = topN(s.id, "lifetime", 1)
+                if top1[1] and top1[1].value > 0 then
+                    sendServerCommand(player, MOD, "ServerMessage", { text = string.format(
+                        "  %s: %s (%s)",
+                        s.label,
+                        top1[1].name,
+                        PlayerRanks.Defs.formatValue(s.id, top1[1].value)
+                    )})
+                else
+                    sendServerCommand(player, MOD, "ServerMessage",
+                        { text = "  " .. s.label .. ": no data yet" })
+                end
+            end
+            -- Show the requesting player's own zombie kills for context
+            local sid    = player:getSteamID()
+            local record = data[sid]
+            local myKills = record and record.lifetime and record.lifetime["zombieskilled"] or 0
+            sendServerCommand(player, MOD, "ServerMessage",
+                { text = "  Your zombies killed: " .. tostring(myKills) })
+            return
+        end
+
         if parts[1] ~= "/ranks" then return end
 
         local sub = parts[2] or "show"
