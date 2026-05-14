@@ -1,13 +1,15 @@
 -- Client-side: event hooks, delta batching, /ranks chat command, server message display.
 -- Phase 1: event-based stats only. Polled stats (distance, tiles, etc.) added in Phase 2.
 
-local MOD              = "PlayerRanks"
-local FLUSH_INTERVAL   = 30000  -- ms between automatic delta flushes
+local MOD            = "PlayerRanks"
+local FLUSH_INTERVAL = 30000  -- ms between automatic delta flushes
 
-local _deltas          = {}     -- accumulated unsent stat increments
-local _lastFlush       = 0
+local _deltas    = {}  -- accumulated unsent stat increments
+local _lastFlush = 0
 
--- ── Delta helpers ─────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Delta helpers
+-- ---------------------------------------------------------------------------
 
 local function inc(statId, amount)
     _deltas[statId] = (_deltas[statId] or 0) + (amount or 1)
@@ -25,9 +27,11 @@ local function flushDeltas()
     _deltas = {}
 end
 
--- ── Zombie kills ──────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Zombie kills
 -- TODO(hook-audit): confirm zombie:getAttacker() is the correct B42 method name.
--- Alternative names seen in community code: getLastAttacker(), getKiller().
+-- Alternatives seen in community code: getLastAttacker(), getKiller().
+-- ---------------------------------------------------------------------------
 
 Events.OnZombieDead.Add(function(zombie)
     local player = getSpecificPlayer(0)
@@ -41,9 +45,10 @@ Events.OnZombieDead.Add(function(zombie)
     end
 end)
 
--- ── Bites & scratches ─────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Bites & scratches
 -- TODO(hook-audit): OnPlayerHit signature and bodypart type constants need
--- verification in B42. Placeholder below — enable once confirmed.
+-- verification in B42. Enable once confirmed.
 --
 -- Events.OnPlayerHit.Add(function(player, attacker, bodyPart)
 --     if player ~= getSpecificPlayer(0) then return end
@@ -53,68 +58,55 @@ end)
 --         if string.find(bpName, "Scratch") then inc("timesscratched") end
 --     end
 -- end)
+-- ---------------------------------------------------------------------------
 
--- ── Knockdowns ────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Knockdowns
 -- TODO(hook-audit): Verify OnPlayerFall exists in B42.
 --
 -- Events.OnPlayerFall.Add(function(player)
 --     if player ~= getSpecificPlayer(0) then return end
 --     inc("timesknocked")
 -- end)
+-- ---------------------------------------------------------------------------
 
--- ── Panic ─────────────────────────────────────────────────────────────────────
--- TODO(hook-audit): Moodle application hook name needs verification.
--- Candidate: Events.OnMoodleChange or checking moodle level delta in OnTick.
-
--- ── Crafting ─────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Crafting
 -- TODO(hook-audit): Verify OnPlayerCraft / OnCraftingComplete exists in B42.
 --
 -- Events.OnPlayerCraft.Add(function(player, result)
 --     if player ~= getSpecificPlayer(0) then return end
 --     inc("itemscrafted")
 -- end)
+-- ---------------------------------------------------------------------------
 
--- ── Repairs ──────────────────────────────────────────────────────────────────
--- TODO(hook-audit): Item repair hook name needs verification.
-
--- ── Building ─────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Building
 -- TODO(hook-audit): Verify OnPlayerBuild exists in B42.
 --
 -- Events.OnPlayerBuild.Add(function(player, object)
 --     if player ~= getSpecificPlayer(0) then return end
 --     inc("structuresbuilt")
 -- end)
+-- ---------------------------------------------------------------------------
 
--- ── Books / skill books ───────────────────────────────────────────────────────
--- TODO(hook-audit): OnItemUse or equivalent, filter by IsReadable / skill book type.
-
--- ── Farming ──────────────────────────────────────────────────────────────────
+-- TODO(hook-audit): Panic moodle hook needs verification.
+-- TODO(hook-audit): Item repair hook needs verification.
+-- TODO(hook-audit): OnItemUse or equivalent for books/meds/food - needs verification.
 -- TODO(hook-audit): Farming action hooks need verification.
-
--- ── Eating / calories / medications / cigarettes / alcohol ───────────────────
--- TODO(hook-audit): OnPlayerEatFood or equivalent; filter by item category.
-
--- ── Doors kicked / windows smashed ───────────────────────────────────────────
 -- TODO(hook-audit): Force-open and break-window hooks need verification.
-
--- ── Vomit ─────────────────────────────────────────────────────────────────────
 -- TODO(hook-audit): Vomit/sick action hook needs verification.
-
--- ── Items given ──────────────────────────────────────────────────────────────
--- TODO(hook-audit): Detect player→player inventory transfer in B42.
-
--- ── Vehicle hotwire / repair ──────────────────────────────────────────────────
+-- TODO(hook-audit): Player->player inventory transfer detection needs verification.
 -- TODO(hook-audit): Mechanic and hotwire action hooks need verification.
-
--- ── Passed out ───────────────────────────────────────────────────────────────
 -- TODO(hook-audit): Unconscious moodle or OnPlayerFallUnconscious needs verification.
 
--- ── Chat messages + /ranks command ───────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Chat messages + /ranks command
 -- Counts outgoing chat messages and intercepts /ranks slash commands.
 -- The /ranks text will appear in the chat box until Phase 4 suppression is added.
---
 -- TODO(hook-audit): Confirm OnChatMessage signature in B42.
 -- Known variants: (chat, message, tabID) with ChatMessage object, or (author, text).
+-- ---------------------------------------------------------------------------
 
 Events.OnChatMessage.Add(function(chat, message)
     if not message then return end
@@ -145,7 +137,9 @@ Events.OnChatMessage.Add(function(chat, message)
     inc("chatmessages")
 end)
 
--- ── Flush timer ───────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Flush timer
+-- ---------------------------------------------------------------------------
 
 Events.OnTick.Add(function()
     local now = getTimeInMillis()
@@ -160,11 +154,13 @@ Events.OnGameStart.Add(function()
 end)
 
 -- Flush on clean disconnect
-Events.OnGameEnd.Add(function()
+Events.OnDisconnect.Add(function()
     flushDeltas()
 end)
 
--- ── Receive server messages ───────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Receive server messages
+-- ---------------------------------------------------------------------------
 
 Events.OnServerCommand.Add(function(module, command, args)
     if module ~= MOD then return end
@@ -175,7 +171,7 @@ Events.OnServerCommand.Add(function(module, command, args)
         local ok = pcall(function()
             local chat = ISChat.instance
             if chat and chat.chatText then
-                -- RGBA: pale yellow for mod messages
+                -- pale yellow for mod messages
                 chat.chatText:addLineInWindow(text, 0.9, 0.85, 0.4, 1.0)
             end
         end)

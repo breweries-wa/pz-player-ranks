@@ -3,8 +3,10 @@
 local MOD      = "PlayerRanks"
 local DATA_KEY = "PlayerRanks_data"
 
--- ── Data layer ────────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Data layer
 -- Keep a live Lua reference so we only hit ModData.get on cold load.
+-- ---------------------------------------------------------------------------
 
 local _data = nil
 
@@ -35,24 +37,27 @@ local function ensurePlayer(player)
             char        = PlayerRanks.Defs.newRecord(),
         }
     else
-        -- Keep display name current
         data[sid].displayName = player:getUsername()
     end
     return data[sid]
 end
 
--- ── Leaderboard helpers ───────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Leaderboard helpers
+-- ---------------------------------------------------------------------------
 
 local function buildRankedRows(statId, setKey)
     local data = loadData()
     local rows = {}
     for sid, record in pairs(data) do
-        local set = record[setKey]
-        rows[#rows+1] = {
-            sid   = sid,
-            name  = record.displayName or "?",
-            value = (set and set[statId]) or 0,
-        }
+        if sid ~= "__hof__" then
+            local set = record[setKey]
+            rows[#rows+1] = {
+                sid   = sid,
+                name  = record.displayName or "?",
+                value = (set and set[statId]) or 0,
+            }
+        end
     end
     table.sort(rows, function(a, b) return a.value > b.value end)
     return rows
@@ -75,12 +80,14 @@ local function playerRank(steamid, statId, setKey)
     return nil, 0
 end
 
--- ── Client command handler ────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Client command handler
+-- ---------------------------------------------------------------------------
 
 Events.OnClientCommand.Add(function(module, command, player, args)
     if module ~= MOD then return end
 
-    -- ── StatDelta: client flushing accumulated event deltas ───────────────────
+    -- StatDelta: client flushing accumulated event deltas
     if command == "StatDelta" then
         local deltas = args.deltas
         if type(deltas) ~= "table" then return end
@@ -97,7 +104,7 @@ Events.OnClientCommand.Add(function(module, command, player, args)
         end
         saveData()
 
-    -- ── RequestLeaderboard: UI tab opening, stat picker change ───────────────
+    -- RequestLeaderboard: UI tab opening, stat picker change
     elseif command == "RequestLeaderboard" then
         local statId = args.statId or "zombieskilled"
         local setKey = (args.setKey == "char") and "char" or "lifetime"
@@ -106,9 +113,9 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             statId = "zombieskilled"
         end
 
-        local sid                = player:getSteamID()
-        local top                = topN(statId, setKey, 10)
-        local myRank, myVal      = playerRank(sid, statId, setKey)
+        local sid           = player:getSteamID()
+        local top           = topN(statId, setKey, 10)
+        local myRank, myVal = playerRank(sid, statId, setKey)
 
         -- Context rows: one above, player, one below (Phase 3 UI uses these)
         local allRows = buildRankedRows(statId, setKey)
@@ -135,7 +142,7 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             ctxBelow = ctxBelow,
         })
 
-    -- ── RequestMyStats: My Stats tab ─────────────────────────────────────────
+    -- RequestMyStats: My Stats tab
     elseif command == "RequestMyStats" then
         local data   = loadData()
         local sid    = player:getSteamID()
@@ -145,13 +152,13 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             char     = record and record.char     or {},
         })
 
-    -- ── RequestHoF: Hall of Fame tab ─────────────────────────────────────────
+    -- RequestHoF: Hall of Fame tab
     elseif command == "RequestHoF" then
-        local data  = loadData()
-        local hof   = data["__hof__"] or {}
+        local data = loadData()
+        local hof  = data["__hof__"] or {}
         sendServerCommand(player, MOD, "HoFResult", { hof = hof })
 
-    -- ── ChatCommand: /ranks [show] ────────────────────────────────────────────
+    -- ChatCommand: /ranks [subcommand]
     elseif command == "ChatCommand" then
         local text  = string.lower(args.text or "")
         local parts = {}
@@ -167,13 +174,13 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             local stat = PlayerRanks.Defs.ByID[statId]
             local top5 = topN(statId, "lifetime", 5)
 
-            local lines = { "[PlayerRanks] Top 5 — " .. stat.display .. " (Lifetime):" }
+            local lines = { "[PlayerRanks] Top 5 - " .. stat.display .. " (Lifetime):" }
             if #top5 == 0 then
                 lines[#lines+1] = "  No data yet."
             else
                 for i, row in ipairs(top5) do
                     lines[#lines+1] = string.format(
-                        "  #%d  %s — %s",
+                        "  #%d  %s - %s",
                         i, row.name, PlayerRanks.Defs.formatValue(statId, row.value)
                     )
                 end
@@ -189,10 +196,8 @@ Events.OnClientCommand.Add(function(module, command, player, args)
                     { text = "[PlayerRanks] Admin access required." })
                 return
             end
-            -- Snapshot first, then wipe
-            _data = nil
-            local data = loadData()
-            local hof  = {}
+            -- Snapshot before wiping
+            local hof = {}
             for _, stat in ipairs(PlayerRanks.Defs.Stats) do
                 local top3 = topN(stat.id, "lifetime", 3)
                 if #top3 > 0 then hof[stat.id] = top3 end
@@ -233,8 +238,8 @@ Events.OnClientCommand.Add(function(module, command, player, args)
                     { text = "[PlayerRanks] Usage: /ranks reset <playername>" })
                 return
             end
-            local data    = loadData()
-            local found   = false
+            local data  = loadData()
+            local found = false
             for sid, record in pairs(data) do
                 if sid ~= "__hof__"
                     and string.lower(record.displayName or "") == string.lower(targetName)
@@ -284,7 +289,9 @@ Events.OnClientCommand.Add(function(module, command, player, args)
     end
 end)
 
--- ── Death handler ─────────────────────────────────────────────────────────────
+-- ---------------------------------------------------------------------------
+-- Death handler
+-- ---------------------------------------------------------------------------
 
 Events.OnPlayerDeath.Add(function(player)
     local record = ensurePlayer(player)

@@ -1,9 +1,9 @@
 -- Single source of truth for stat IDs, display names, categories, and format types.
 -- Loaded on both client and server before any other PlayerRanks file.
 
-PlayerRanks       = PlayerRanks or {}
-PlayerRanks.Defs  = {}
-local SD          = PlayerRanks.Defs
+PlayerRanks      = PlayerRanks or {}
+PlayerRanks.Defs = {}
+local SD         = PlayerRanks.Defs
 
 SD.Categories = {
     "Survival",
@@ -15,8 +15,8 @@ SD.Categories = {
     "Social",
 }
 
--- polled=true  → tracked by client timer (Phase 2)
--- polled=false → tracked by event hook
+-- polled=true  -> tracked by client timer (Phase 2)
+-- polled=false -> tracked by event hook
 -- format: "int" | "time" | "distance" | "tile"
 SD.Stats = {
     -- Survival
