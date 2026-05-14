@@ -29,19 +29,30 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Zombie kills
--- TODO(hook-audit): zombie:getAttacker() does not exist in B42 -- throws a
--- Java exception that escapes pcall. Need to find the correct method name.
--- Candidates to test one at a time: getLastAttacker(), getKiller(),
--- getAttackedBy(). Disabled until confirmed.
+-- B42 pattern (confirmed from CombatText mod):
+--   OnWeaponHitCharacter tags zombies hit by the local player.
+--   OnZombieDead checks the tag and counts the kill.
+-- Using tostring(zombie) as a unique key per Java object instance.
 -- ---------------------------------------------------------------------------
---
--- Events.OnZombieDead.Add(function(zombie)
---     local player = getSpecificPlayer(0)
---     if not player then return end
---     local ok, attacker = pcall(function() return zombie:getAttacker() end)
---     if not ok or not attacker then return end
---     if attacker == player then inc("zombieskilled") end
--- end)
+
+local _hitByPlayer = {}  -- keys: tostring(zombie), value: true
+
+Events.OnWeaponHitCharacter.Add(function(attacker, target, weapon, damage)
+    local player = getSpecificPlayer(0)
+    if not player or attacker ~= player then return end
+    local ok, objName = pcall(function() return target:getObjectName() end)
+    if ok and objName == "Zombie" then
+        _hitByPlayer[tostring(target)] = true
+    end
+end)
+
+Events.OnZombieDead.Add(function(zombie)
+    local key = tostring(zombie)
+    if _hitByPlayer[key] then
+        _hitByPlayer[key] = nil
+        inc("zombieskilled")
+    end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Bites & scratches
