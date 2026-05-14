@@ -1,6 +1,6 @@
 # Player Ranks
 
-A multiplayer server mod for **Project Zomboid Build 42**. Tracks player stats across a configurable set of categories, persists data server-side, and displays ranked leaderboards in-game. Stats are tracked at two levels: **lifetime** (survives death, resets on server wipe) and **current character** (resets on death).
+A multiplayer server mod for **Project Zomboid Build 42**. Tracks player stats across a configurable set of categories, persists data server-side, and displays ranked leaderboards via an in-game panel. Stats are tracked at two levels: **lifetime** (survives death, resets on server wipe) and **current character** (resets on death).
 
 ---
 
@@ -9,7 +9,7 @@ A multiplayer server mod for **Project Zomboid Build 42**. Tracks player stats a
 - **39 tracked stats** across 7 categories: Survival, Exploration, Combat, Industry, Deaths & Suffering, Vehicles, and Social/Chaos
 - **Lifetime vs. character split** — compete on who's died the most or who's survived the longest without dying
 - **Hall of Fame snapshot** — before a server wipe, the top 3 per stat are preserved and viewable in-game
-- **In-game leaderboard UI** (Phase 3) — tabbed panel with stat picker, top-10 list, and a "you are here" context block
+- **In-game leaderboard UI** (Phase 3) — type `/rank` in chat to open a tabbed panel with stat picker, top-10 list, and a "you are here" context block
 - **Admin chat commands** — wipe data, snapshot the Hall of Fame, or reset individual players
 - No client mod required — server-side only
 
@@ -48,20 +48,33 @@ Zomboid/mods/PlayerRanks/
 
 ---
 
+## Usage
+
+Type `/rank` in chat to open the leaderboard panel. The panel has four tabs:
+
+| Tab | Shows |
+|---|---|
+| My Stats | All stats for your character, lifetime and current-character side by side |
+| Top Players | Ranked by lifetime stats — top 10 plus your position |
+| Top Characters | Ranked by current-character stats — top 10 plus your position |
+| Hall of Fame | Top 3 per stat from the last server wipe snapshot |
+
+Use the stat dropdown to switch between any of the 39 tracked stats.
+
+---
+
 ## Admin Commands
 
-Type these in the in-game chat. All commands except `/ranks show` require Admin or Moderator access level.
+Type these in chat. All require Admin or Moderator access level.
 
 | Command | Effect |
 |---|---|
-| `/ranks show` | Print top 5 Zombies Killed (lifetime) to your chat |
-| `/ranks show <statId>` | Print top 5 for any stat (e.g. `/ranks show distancetraveled`) |
 | `/ranks snapshot` | Save a Hall of Fame snapshot from current lifetime data |
 | `/ranks wipe` | Snapshot then clear all player data |
 | `/ranks reset <player>` | Reset both stat sets for a named player |
 | `/ranks resetchar <player>` | Reset only current-character stats for a named player |
 
-Stat IDs match the internal names shown in the table below — lowercase, no spaces (e.g. `zombieskilled`, `tilesvisited`, `totaldeaths`).
+Stat IDs are lowercase with no spaces (e.g. `zombieskilled`, `tilesvisited`, `totaldeaths`).
 
 ---
 
@@ -79,10 +92,10 @@ Stat IDs match the internal names shown in the table below — lowercase, no spa
 
 | Phase | Status | Scope |
 |---|---|---|
-| 1 — Foundation | ✅ Complete | Mod scaffold, stat definitions, server data layer, event hooks (zombies killed, chat), admin chat commands, death handling |
-| 2 — Polling + Full Coverage | 🔲 Planned | 5s client timer, polled stats (distance, tiles visited, time online, etc.), wipe handler |
-| 3 — UI | 🔲 Planned | ISPanel leaderboard with tabs (My Stats / Top Players / Top Characters / Hall of Fame), stat dropdown, "you are here" row |
-| 4 — Polish | 🔲 Planned | Stat format strings, config file (sampling interval, enabled stats), Workshop page |
+| 1 -- Foundation | Complete | Mod scaffold, stat definitions, server data layer, event hooks (zombies killed), admin chat commands, death handling |
+| 2 -- Polling + Full Coverage | Planned | 5s client timer, polled stats (distance, tiles visited, time online, etc.), wipe handler |
+| 3 -- UI | Planned | `/rank` chat trigger, ISPanel leaderboard with tabs (My Stats / Top Players / Top Characters / Hall of Fame), stat dropdown, "you are here" row |
+| 4 -- Polish | Planned | Stat format strings, config file (sampling interval, enabled stats), Workshop page |
 
 ---
 
@@ -91,22 +104,16 @@ Stat IDs match the internal names shown in the table below — lowercase, no spa
 ```
 workshop/content/108600/PlayerRanks/
   mod.info
-  common/mod.info          ← required duplicate or mod won't appear in list
+  common/mod.info          <- required duplicate or mod won't appear in list
   42/
     media/
       lua/
         shared/
-          PlayerRanks_StatDefs.lua   ← stat catalog, format helpers
+          PlayerRanks_StatDefs.lua   <- stat catalog, format helpers
         server/
-          PlayerRanks_Server.lua     ← data layer, leaderboard queries, death/wipe handling
+          PlayerRanks_Server.lua     <- data layer, leaderboard queries, death/wipe handling
         client/
-          PlayerRanks_Client.lua     ← event hooks, delta batching, /ranks command
-```
-
-After editing, deploy to the runtime copy before restarting PZ:
-
-```powershell
-Copy-Item ".\PlayerRanks\42\media\lua\*" "C:\Users\<you>\Zomboid\mods\PlayerRanks\42\media\lua\" -Recurse -Force
+          PlayerRanks_Client.lua     <- event hooks, delta batching, /rank UI trigger
 ```
 
 ---
