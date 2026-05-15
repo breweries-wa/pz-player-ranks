@@ -22,6 +22,7 @@ local function loadData()
 end
 
 local function saveData()
+    if not _data then return end
     ModData.add(DATA_KEY, _data)
     ModData.transmit(DATA_KEY)
 end
@@ -164,6 +165,7 @@ Events.OnClientCommand.Add(function(module, command, player, args)
     -- ChatCommand: /ranks [subcommand]
     elseif command == "ChatCommand" then
         local text  = string.lower(args.text or "")
+        ---@type string[]
         local parts = {}
         for word in text:gmatch("%S+") do parts[#parts+1] = word end
 
@@ -210,6 +212,7 @@ Events.OnClientCommand.Add(function(module, command, player, args)
             local statId = parts[3] or "zombieskilled"
             if not PlayerRanks.Defs.ByID[statId] then statId = "zombieskilled" end
             local stat = PlayerRanks.Defs.ByID[statId]
+            if not stat then return end
             local top5 = topN(statId, "lifetime", 5)
 
             local lines = { "[PlayerRanks] Top 5 - " .. stat.display .. " (Lifetime):" }

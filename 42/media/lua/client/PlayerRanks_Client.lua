@@ -29,13 +29,26 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Chat output helper
--- Confirmed B42 API: ISChat.addLineInChat(message, tabIndex)
+-- B42 API: ISChat.addLineInChat(msgObject, tabIndex)
+-- msgObject must be a table with chat message methods (confirmed from Firminus SERVER mod).
 -- tabIndex 0 = General tab
 -- ---------------------------------------------------------------------------
 
 local function addChatLine(text)
     local ok = pcall(function()
-        ISChat.addLineInChat(text, 0)
+        local chatMsg = {
+            getTextWithPrefix = function(self) return text end,
+            getText           = function(self) return text end,
+            setText           = function(self, t) text = t end,
+            isOverHeadSpeech  = function() return false end,
+            isServerAlert     = function() return false end,
+            isShowAuthor      = function() return false end,
+            isServerAuthor    = function() return true  end,
+            getAuthor         = function() return false end,
+            getRadioChannel   = function() return -1    end,
+        }
+        chatMsg.__index = chatMsg
+        ISChat.addLineInChat(setmetatable({ msg = text .. "\t" }, chatMsg) --[[@as ChatMessage]], 0)
     end)
     if not ok then
         print("[PlayerRanks] " .. text)
